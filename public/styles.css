@@ -15,7 +15,32 @@
   --red:         #e03030;
   --shadow:      0 2px 8px rgba(0,0,0,0.45);
   --gap:         14px;
+  --header-bg:   rgba(0,0,0,0.25);
+  --modal-bg:    #0f3d22;
 }
+
+/* ─── Light mode ────────────────────────────────────────────── */
+body.light {
+  --felt:        #3a8f5a;
+  --felt-dark:   #2e7a4a;
+  --felt-light:  #45a868;
+  --pile-border: rgba(0,0,0,0.18);
+  --text:        #0f2a18;
+  --text-dim:    rgba(15,42,24,0.55);
+  --shadow:      0 2px 8px rgba(0,0,0,0.2);
+  --header-bg:   rgba(0,0,0,0.10);
+  --modal-bg:    #d4edda;
+}
+
+body.light h1               { color: #0f5a28; }
+body.light .card            { border-color: #bbb; }
+body.light .card.face-down  {
+  background: repeating-linear-gradient(135deg,#2060c0 0 4px,#1a50aa 4px 8px);
+  border-color: #1a50aa;
+}
+body.light #win-modal,
+body.light #leaderboard-modal { color: var(--text); }
+body.light #leaderboard-content th { color: var(--text-dim); }
 
 html, body {
   height: 100%;
@@ -33,7 +58,7 @@ html, body {
 }
 
 header {
-  background: rgba(0,0,0,0.25);
+  background: var(--header-bg);
   padding: 10px 20px;
   display: flex;
   align-items: center;
@@ -88,12 +113,29 @@ button {
 }
 
 button:active { transform: scale(0.97); }
+button:disabled { opacity: 0.35; cursor: default; transform: none; }
 
 #btn-new-game {
   background: var(--accent);
   color: #1a1a1a;
 }
 #btn-new-game:hover { background: #f5cc55; }
+
+#btn-undo {
+  background: rgba(255,255,255,0.08);
+  color: var(--text);
+  border: 1px solid rgba(255,255,255,0.15);
+}
+#btn-undo:not(:disabled):hover { background: rgba(255,255,255,0.14); }
+
+#btn-dark-mode {
+  background: rgba(255,255,255,0.08);
+  color: var(--text);
+  border: 1px solid rgba(255,255,255,0.15);
+  padding: 7px 10px;
+  font-size: 1rem;
+}
+#btn-dark-mode:hover { background: rgba(255,255,255,0.14); }
 
 #btn-leaderboard {
   background: rgba(255,255,255,0.1);
@@ -283,7 +325,7 @@ button:active { transform: scale(0.97); }
 
 #win-modal,
 #leaderboard-modal {
-  background: #0f3d22;
+  background: var(--modal-bg);
   border: 1px solid rgba(255,255,255,0.15);
   border-radius: 14px;
   padding: 28px 32px;

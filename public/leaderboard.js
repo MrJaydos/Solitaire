@@ -1,6 +1,21 @@
 /* ══════════════════════════════════════════════════════════════
-   leaderboard.js — fetch / render / submit
+   leaderboard.js — fetch / render / submit + dark mode + name persistence
    ══════════════════════════════════════════════════════════════ */
+
+/* ─── Dark mode ─────────────────────────────────────────────── */
+(function initDarkMode() {
+  const btn = document.getElementById('btn-dark-mode');
+  const isLight = localStorage.getItem('solitaire-theme') === 'light';
+  if (isLight) {
+    document.body.classList.add('light');
+    btn.textContent = '🌙';
+  }
+  btn.addEventListener('click', () => {
+    const nowLight = document.body.classList.toggle('light');
+    localStorage.setItem('solitaire-theme', nowLight ? 'light' : 'dark');
+    btn.textContent = nowLight ? '🌙' : '☀';
+  });
+})();
 
 function formatTime(ms) {
   const s = Math.floor(ms / 1000);
@@ -100,6 +115,7 @@ async function submitScore() {
     nameEl.focus();
     return;
   }
+  localStorage.setItem('solitaire-name', name);
 
   const timeMs = window.lastWinMs;
   if (!timeMs || timeMs < 1) {

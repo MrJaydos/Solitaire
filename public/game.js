@@ -17,6 +17,7 @@ let elapsed = 0;   // ms
 let timerRunning = false;
 let hintTimeout = null;
 const HINT_DELAY = 60_000;
+let undoStack = [];
 
 /* ─── Timer helpers ─────────────────────────────────────────── */
 function startTimer() {
@@ -79,6 +80,8 @@ function newGame() {
   clearTimeout(hintTimeout);
   clearHint();
   stopCelebration();
+  undoStack = [];
+  updateUndoButton();
   document.getElementById('move-counter').textContent = '0 moves';
   const deck = shuffle(buildDeck());
   const tableau = Array.from({ length: 7 }, () => []);
@@ -168,6 +171,7 @@ function recordMove() {
     `${state.moveCount} move${state.moveCount === 1 ? '' : 's'}`;
   if (!timerRunning) startTimer();
   resetHintTimer();
+  updateUndoButton();
 }
 
 /* ─── Win check ─────────────────────────────────────────────── */
@@ -178,9 +182,38 @@ function checkWin() {
     stopTimer();
     clearTimeout(hintTimeout);
     clearHint();
+    undoStack = [];
+    updateUndoButton();
     startCelebration(state.foundations.map(f => [...f]));
     setTimeout(showWin, 1000);
   }
+}
+
+/* ─── Undo ───────────────────────────────────────────────────── */
+function saveUndoState() {
+  undoStack.push({
+    stock:       state.stock.map(c => ({ ...c })),
+    waste:       state.waste.map(c => ({ ...c })),
+    foundations: state.foundations.map(f => f.map(c => ({ ...c }))),
+    tableau:     state.tableau.map(col => col.map(c => ({ ...c }))),
+  });
+}
+
+function undo() {
+  if (undoStack.length === 0) return;
+  const prev = undoStack.pop();
+  const moveCount = state.moveCount + 1; // undo costs a move
+  state = { ...prev, moveCount, won: false };
+  document.getElementById('move-counter').textContent =
+    `${state.moveCount} move${state.moveCount === 1 ? '' : 's'}`;
+  resetHintTimer();
+  updateUndoButton();
+  render();
+}
+
+function updateUndoButton() {
+  const btn = document.getElementById('btn-undo');
+  if (btn) btn.disabled = undoStack.length === 0;
 }
 
 /* ─── Hint system ───────────────────────────────────────────── */
@@ -325,10 +358,15 @@ function smartMove(source, colOrIdx, count) {
     }
   }
 
-  if (!dest) return false;
+  if (!dest) {
+    recordMove(); // failed click still costs a move — no undo state saved
+    return false;
+  }
 
   // Snapshot source positions before DOM changes
   const sourceRects = captureSourceRects(source, colOrIdx, count);
+
+  saveUndoState();
 
   // Apply move
   if (dest.type === 'foundation') {
@@ -698,7 +736,7 @@ function applyDrop(pile, source, colOrIdx, count, cards) {
     const fi = parseInt(pile.el.dataset.foundation);
     if (!canStackOnFoundation(card, state.foundations[fi])) { render(); return; }
 
-    // Remove from source
+    saveUndoState();
     removeFromSource(source, colOrIdx, count);
     state.foundations[fi].push(card);
     recordMove();
@@ -713,6 +751,7 @@ function applyDrop(pile, source, colOrIdx, count, cards) {
 
     if (!canStackOnTableau(card, topCard)) { render(); return; }
 
+    saveUndoState();
     removeFromSource(source, colOrIdx, count);
     state.tableau[destCol].push(...cards);
     recordMove();
@@ -734,6 +773,7 @@ function removeFromSource(source, colOrIdx, count) {
    CLICK HANDLERS (non-drag)
    ────────────────────────────────────────────────────────────── */
 document.getElementById('stock').addEventListener('click', () => {
+  saveUndoState();
   if (state.stock.length > 0) {
     const toDraw = Math.min(3, state.stock.length);
     for (let i = 0; i < toDraw; i++) {
@@ -770,7 +810,10 @@ function showWin() {
   document.getElementById('win-moves').textContent =
     `Moves: ${state.moveCount}`;
   document.getElementById('win-overlay').classList.remove('hidden');
-  document.getElementById('player-name').focus();
+  const nameEl = document.getElementById('player-name');
+  const savedName = localStorage.getItem('solitaire-name');
+  if (savedName) nameEl.value = savedName;
+  nameEl.focus();
 
   // Expose to leaderboard.js
   window.lastWinMs = ms;
@@ -785,6 +828,8 @@ document.getElementById('btn-new-game').addEventListener('click', () => {
   document.getElementById('win-overlay').classList.add('hidden');
   newGame();
 });
+
+document.getElementById('btn-undo').addEventListener('click', undo);
 
 /* ─── Boot ──────────────────────────────────────────────────── */
 setupDropZones();
