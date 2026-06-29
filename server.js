@@ -9,6 +9,10 @@ const DB_PATH = process.env.DB_PATH || '/data/leaderboard.db';
 const app = express();
 app.set('trust proxy', 1);
 app.use(express.json());
+app.use((req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
 app.use(express.static(path.join(__dirname, 'public')));
 
 // DB init

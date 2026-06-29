@@ -413,6 +413,25 @@ button:active { transform: scale(0.97); }
   font-style: italic;
 }
 
+/* ─── Hint highlight ───────────────────────────────────────── */
+@keyframes hint-card-pulse {
+  0%, 100% { box-shadow: var(--shadow), 0 0 0 2px var(--accent), 0 0 12px rgba(240,192,64,0.45); }
+  50%       { box-shadow: var(--shadow), 0 0 0 3px var(--accent), 0 0 22px rgba(240,192,64,0.8); }
+}
+@keyframes hint-pile-pulse {
+  0%, 100% { border-color: rgba(240,192,64,0.5); box-shadow: inset 0 0 0 1px rgba(240,192,64,0.2); }
+  50%       { border-color: var(--accent);        box-shadow: inset 0 0 0 1px rgba(240,192,64,0.4), 0 0 14px rgba(240,192,64,0.3); }
+}
+
+.card.hint-source {
+  animation: hint-card-pulse 1.1s ease-in-out infinite;
+  z-index: 20;
+}
+.pile.hint-dest {
+  animation: hint-pile-pulse 1.1s ease-in-out infinite 0.55s;
+  border-style: solid;
+}
+
 /* ─── Responsive ───────────────────────────────────────────── */
 @media (max-width: 600px) {
   :root {

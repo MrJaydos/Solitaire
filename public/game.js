@@ -15,6 +15,8 @@ let timerInterval = null;
 let timerStart = null;
 let elapsed = 0;   // ms
 let timerRunning = false;
+let hintTimeout = null;
+const HINT_DELAY = 60_000;
 
 /* ─── Timer helpers ─────────────────────────────────────────── */
 function startTimer() {
@@ -74,6 +76,8 @@ function shuffle(arr) {
 /* ─── New game ──────────────────────────────────────────────── */
 function newGame() {
   resetTimer();
+  clearTimeout(hintTimeout);
+  clearHint();
   document.getElementById('move-counter').textContent = '0 moves';
   const deck = shuffle(buildDeck());
   const tableau = Array.from({ length: 7 }, () => []);
@@ -98,6 +102,7 @@ function newGame() {
 
   render();
   animateDeal();
+  resetHintTimer();
 }
 
 function animateDeal() {
@@ -161,6 +166,7 @@ function recordMove() {
   document.getElementById('move-counter').textContent =
     `${state.moveCount} move${state.moveCount === 1 ? '' : 's'}`;
   if (!timerRunning) startTimer();
+  resetHintTimer();
 }
 
 /* ─── Win check ─────────────────────────────────────────────── */
@@ -169,8 +175,118 @@ function checkWin() {
   if (won && !state.won) {
     state.won = true;
     stopTimer();
+    clearTimeout(hintTimeout);
+    clearHint();
     setTimeout(showWin, 400);
   }
+}
+
+/* ─── Hint system ───────────────────────────────────────────── */
+function resetHintTimer() {
+  clearHint();
+  clearTimeout(hintTimeout);
+  hintTimeout = setTimeout(triggerHint, HINT_DELAY);
+}
+
+function clearHint() {
+  document.querySelectorAll('.hint-source, .hint-dest')
+    .forEach(el => el.classList.remove('hint-source', 'hint-dest'));
+}
+
+function triggerHint() {
+  const hint = findHint();
+  if (!hint) return;
+
+  if (hint.srcType === 'waste') {
+    document.getElementById('waste').lastChild?.classList.add('hint-source');
+  } else if (hint.srcType === 'tableau') {
+    const colEl = document.querySelectorAll('.tableau-col')[hint.srcCol];
+    const cardEls = colEl.querySelectorAll('.card');
+    Array.from(cardEls).slice(cardEls.length - hint.count)
+      .forEach(el => el.classList.add('hint-source'));
+  } else if (hint.srcType === 'stock') {
+    document.getElementById('stock').classList.add('hint-source');
+  }
+
+  if (hint.destType === 'foundation') {
+    document.querySelector(`.foundation[data-foundation="${hint.destIdx}"]`)
+      ?.classList.add('hint-dest');
+  } else if (hint.destType === 'tableau') {
+    document.querySelectorAll('.tableau-col')[hint.destIdx]
+      ?.classList.add('hint-dest');
+  }
+}
+
+function findHint() {
+  // 1. Any card → foundation (always the highest-priority move)
+  if (state.waste.length > 0) {
+    const card = state.waste[state.waste.length - 1];
+    const fi = foundationIndexForCard(card);
+    if (fi !== -1) return { srcType: 'waste', destType: 'foundation', destIdx: fi, count: 1 };
+  }
+  for (let col = 0; col < 7; col++) {
+    const cards = state.tableau[col];
+    if (!cards.length) continue;
+    const card = cards[cards.length - 1];
+    if (!card.faceUp) continue;
+    const fi = foundationIndexForCard(card);
+    if (fi !== -1) return { srcType: 'tableau', srcCol: col, destType: 'foundation', destIdx: fi, count: 1 };
+  }
+
+  // 2. Moves that reveal a face-down card (most strategically valuable)
+  for (let srcCol = 0; srcCol < 7; srcCol++) {
+    const srcCards = state.tableau[srcCol];
+    const firstFaceUp = srcCards.findIndex(c => c.faceUp);
+    if (firstFaceUp <= 0) continue; // nothing face-down underneath
+    const card = srcCards[firstFaceUp];
+    const count = srcCards.length - firstFaceUp;
+    for (let destCol = 0; destCol < 7; destCol++) {
+      if (destCol === srcCol) continue;
+      const destCards = state.tableau[destCol];
+      if (destCards.length === 0) continue;
+      if (canStackOnTableau(card, destCards[destCards.length - 1])) {
+        return { srcType: 'tableau', srcCol, destType: 'tableau', destIdx: destCol, count };
+      }
+    }
+  }
+
+  // 3. Waste → tableau
+  if (state.waste.length > 0) {
+    const card = state.waste[state.waste.length - 1];
+    for (let destCol = 0; destCol < 7; destCol++) {
+      const destCards = state.tableau[destCol];
+      const topCard = destCards.length > 0 ? destCards[destCards.length - 1] : null;
+      if (canStackOnTableau(card, topCard)) {
+        return { srcType: 'waste', destType: 'tableau', destIdx: destCol, count: 1 };
+      }
+    }
+  }
+
+  // 4. Any tableau sequence → tableau
+  for (let srcCol = 0; srcCol < 7; srcCol++) {
+    const srcCards = state.tableau[srcCol];
+    const firstFaceUp = srcCards.findIndex(c => c.faceUp);
+    if (firstFaceUp === -1) continue;
+    for (let startIdx = firstFaceUp; startIdx < srcCards.length; startIdx++) {
+      const count = srcCards.length - startIdx;
+      const card = srcCards[startIdx];
+      for (let destCol = 0; destCol < 7; destCol++) {
+        if (destCol === srcCol) continue;
+        const destCards = state.tableau[destCol];
+        const topCard = destCards.length > 0 ? destCards[destCards.length - 1] : null;
+        if (canStackOnTableau(card, topCard)) {
+          return { srcType: 'tableau', srcCol, destType: 'tableau', destIdx: destCol, count };
+        }
+      }
+    }
+  }
+
+  // 5. Draw from stock
+  if (state.stock.length > 0 || state.waste.length > 1) {
+    return { srcType: 'stock', destType: null, destIdx: null, count: 0 };
+  }
+
+  return null;
 }
 
 /* ─── Smart auto-move on click ──────────────────────────────── */
