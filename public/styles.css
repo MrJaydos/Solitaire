@@ -253,6 +253,11 @@ button:active { transform: scale(0.97); }
   pointer-events: none;
 }
 
+/* Waste pile widens to show 3 fanned cards */
+.waste-pile {
+  width: calc(var(--card-w) + 36px); /* card + 2 × 18px fan offset */
+}
+
 /* Top card of waste visible */
 .waste-pile .card:not(:last-child) {
   pointer-events: none;
@@ -448,4 +453,5 @@ button:active { transform: scale(0.97); }
   .card .rank { font-size: 0.8rem; }
   .card .suit { font-size: 0.6rem; }
   .foundation::before { font-size: 1.3rem; }
+  .waste-pile { width: calc(var(--card-w) + 14px); } /* 2 × 7px fan offset on mobile */
 }

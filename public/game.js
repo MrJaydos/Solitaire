@@ -449,15 +449,19 @@ function renderWaste() {
   el.innerHTML = '';
   if (state.waste.length === 0) return;
 
-  const SHOW = Math.min(state.waste.length, 1);
+  const FAN_OFFSET = window.innerWidth <= 600 ? 7 : 18;
+  const SHOW = Math.min(state.waste.length, 3);
+
   for (let i = state.waste.length - SHOW; i < state.waste.length; i++) {
     const card = state.waste[i];
     const cardEl = makeCardEl(card);
-    cardEl.style.top = '0px';
+    const pos = i - (state.waste.length - SHOW); // 0, 1, or 2 (0 = furthest back)
+    cardEl.style.top  = '0px';
+    cardEl.style.left = `${pos * FAN_OFFSET}px`;
     el.appendChild(cardEl);
   }
 
-  // Make top card draggable and click-to-smart-move
+  // Only the top card (last child, rightmost) is interactive
   const topEl = el.lastChild;
   if (topEl) {
     setupDrag(topEl, 'waste', state.waste.length - 1, 1);
@@ -729,12 +733,15 @@ function removeFromSource(source, colOrIdx, count) {
    ────────────────────────────────────────────────────────────── */
 document.getElementById('stock').addEventListener('click', () => {
   if (state.stock.length > 0) {
-    const card = state.stock.pop();
-    card.faceUp = true;
-    state.waste.push(card);
+    const toDraw = Math.min(3, state.stock.length);
+    for (let i = 0; i < toDraw; i++) {
+      const card = state.stock.pop();
+      card.faceUp = true;
+      state.waste.push(card);
+    }
   } else {
-    // Recycle
-    state.stock = state.waste.reverse().map(c => ({ ...c, faceUp: false }));
+    // Recycle — reverse waste back into stock maintaining original order
+    state.stock = state.waste.slice().reverse().map(c => ({ ...c, faceUp: false }));
     state.waste = [];
   }
   recordMove();
