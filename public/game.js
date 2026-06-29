@@ -74,6 +74,7 @@ function shuffle(arr) {
 /* ─── New game ──────────────────────────────────────────────── */
 function newGame() {
   resetTimer();
+  document.getElementById('move-counter').textContent = '0 moves';
   const deck = shuffle(buildDeck());
   const tableau = Array.from({ length: 7 }, () => []);
 
@@ -96,6 +97,37 @@ function newGame() {
   };
 
   render();
+  animateDeal();
+}
+
+function animateDeal() {
+  // Stagger each tableau card flying in from the stock pile position.
+  const stockEl = document.getElementById('stock');
+  const stockRect = stockEl.getBoundingClientRect();
+
+  const cardEls = [];
+  document.querySelectorAll('.tableau-col').forEach(colEl => {
+    colEl.querySelectorAll('.card').forEach(c => cardEls.push(c));
+  });
+
+  cardEls.forEach((cardEl, i) => {
+    const destRect = cardEl.getBoundingClientRect();
+    const dx = stockRect.left - destRect.left;
+    const dy = stockRect.top  - destRect.top;
+
+    cardEl.style.transition = 'none';
+    cardEl.style.transform  = `translate(${dx}px, ${dy}px)`;
+    cardEl.style.opacity    = '0';
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        cardEl.style.transition = `transform 0.3s ease, opacity 0.15s ease`;
+        cardEl.style.transitionDelay = `${i * 30}ms`;
+        cardEl.style.transform  = 'translate(0, 0)';
+        cardEl.style.opacity    = '1';
+      });
+    });
+  });
 }
 
 /* ─── Rules ─────────────────────────────────────────────────── */
@@ -141,18 +173,54 @@ function checkWin() {
   }
 }
 
-/* ─── Auto-move to foundation ───────────────────────────────── */
-function tryAutoMoveToFoundation(card, sourceList, sourceIdx) {
-  const fi = foundationIndexForCard(card);
-  if (fi === -1) return false;
-  // Only auto-move single face-up cards from waste or top of tableau
-  sourceList.splice(sourceIdx, 1);
-  state.foundations[fi].push(card);
-  recordMove();
-  flipTopTableau();
-  render();
-  checkWin();
-  return true;
+/* ─── Smart auto-move on click ──────────────────────────────── */
+// Tries foundation first (single cards only), then every tableau column.
+// source: 'waste' | 'tableau'   colOrIdx: column index for tableau
+// count: how many cards in the sequence starting from the clicked card
+function smartMove(source, colOrIdx, count) {
+  let cards;
+  if (source === 'waste') {
+    cards = [state.waste[state.waste.length - 1]];
+  } else {
+    const col = state.tableau[colOrIdx];
+    cards = col.slice(col.length - count);
+  }
+  const card = cards[0];
+
+  // 1. Foundation — single cards only
+  if (cards.length === 1) {
+    const fi = foundationIndexForCard(card);
+    if (fi !== -1) {
+      removeFromSource(source, colOrIdx, count);
+      state.foundations[fi].push(card);
+      recordMove();
+      flipTopTableau();
+      render();
+      checkWin();
+      return true;
+    }
+  }
+
+  // 2. Best tableau column: prefer non-empty columns, then empty
+  for (const preferEmpty of [false, true]) {
+    for (let destCol = 0; destCol < 7; destCol++) {
+      if (source === 'tableau' && destCol === colOrIdx) continue;
+      const destCards = state.tableau[destCol];
+      if (preferEmpty !== (destCards.length === 0)) continue;
+      const topCard = destCards.length > 0 ? destCards[destCards.length - 1] : null;
+      if (canStackOnTableau(card, topCard)) {
+        removeFromSource(source, colOrIdx, count);
+        state.tableau[destCol].push(...cards);
+        recordMove();
+        flipTopTableau();
+        render();
+        checkWin();
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 function flipTopTableau() {
@@ -214,15 +282,15 @@ function renderWaste() {
     el.appendChild(cardEl);
   }
 
-  // Make top card draggable
+  // Make top card draggable and click-to-smart-move
   const topEl = el.lastChild;
-  if (topEl) setupDrag(topEl, 'waste', state.waste.length - 1, 1);
-
-  // Click to auto-move top waste card
-  topEl && topEl.addEventListener('click', () => {
-    const card = state.waste[state.waste.length - 1];
-    tryAutoMoveToFoundation(card, state.waste, state.waste.length - 1);
-  });
+  if (topEl) {
+    setupDrag(topEl, 'waste', state.waste.length - 1, 1);
+    topEl.addEventListener('click', () => {
+      if (dragOccurred) return;
+      smartMove('waste', state.waste.length - 1, 1);
+    });
+  }
 }
 
 function renderFoundations() {
@@ -251,17 +319,12 @@ function renderTableau() {
       cardEl.style.top = `${y}px`;
 
       if (card.faceUp) {
-        // Single click on top face-up card: try auto-move to foundation
-        if (idx === cards.length - 1) {
-          cardEl.addEventListener('click', (e) => {
-            if (dragOccurred) return; // suppress click after drag
-            tryAutoMoveToFoundation(card, state.tableau[col], idx);
-          });
-          setupDrag(cardEl, 'tableau', col, cards.length - idx);
-        } else {
-          // Middle of a sequence — drag the whole sub-sequence
-          setupDrag(cardEl, 'tableau', col, cards.length - idx);
-        }
+        const count = cards.length - idx;
+        setupDrag(cardEl, 'tableau', col, count);
+        cardEl.addEventListener('click', () => {
+          if (dragOccurred) return;
+          smartMove('tableau', col, count);
+        });
         y += FACE_UP_OFFSET;
       } else {
         y += FACE_DOWN_OFFSET;
@@ -279,25 +342,46 @@ function renderTableau() {
 /* ──────────────────────────────────────────────────────────────
    DRAG AND DROP  (mouse + touch unified)
    ────────────────────────────────────────────────────────────── */
-let drag = null;   // { source, colOrIdx, count, ghost, cards, startX, startY }
+let drag = null;        // active drag: { source, colOrIdx, count, ghost, cards, offX, offY }
+let pendingDrag = null; // pre-threshold: { startX, startY, el, source, colOrIdx, count, offX, offY }
 let dragOccurred = false;
+
+const DRAG_THRESHOLD = 5; // px
 
 function setupDrag(el, source, colOrIdx, count) {
   el.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
     e.preventDefault();
-    startDrag(e.clientX, e.clientY, el, source, colOrIdx, count);
+    prepareDrag(e.clientX, e.clientY, el, source, colOrIdx, count);
   });
   el.addEventListener('touchstart', (e) => {
     const t = e.touches[0];
-    startDrag(t.clientX, t.clientY, el, source, colOrIdx, count);
+    prepareDrag(t.clientX, t.clientY, el, source, colOrIdx, count);
   }, { passive: true });
 }
 
-function startDrag(clientX, clientY, el, source, colOrIdx, count) {
+// Store intent but don't build the ghost until the pointer actually moves.
+function prepareDrag(clientX, clientY, el, source, colOrIdx, count) {
   dragOccurred = false;
+  const rect = el.getBoundingClientRect();
+  pendingDrag = {
+    startX: clientX, startY: clientY,
+    el, source, colOrIdx, count,
+    offX: clientX - rect.left,
+    offY: clientY - rect.top,
+  };
+  document.addEventListener('mousemove', onDragMove);
+  document.addEventListener('mouseup',   onDragEnd);
+  document.addEventListener('touchmove', onTouchMove, { passive: false });
+  document.addEventListener('touchend',  onTouchEnd);
+}
 
-  // Collect the cards being dragged
+// Commit the drag once the movement threshold is crossed.
+function activateDrag(clientX, clientY) {
+  if (!pendingDrag || drag) return;
+  const { el, source, colOrIdx, count, offX, offY } = pendingDrag;
+  pendingDrag = null;
+
   let cards;
   if (source === 'waste') {
     cards = [state.waste[state.waste.length - 1]];
@@ -306,19 +390,12 @@ function startDrag(clientX, clientY, el, source, colOrIdx, count) {
     cards = col.slice(col.length - count);
   }
 
-  // Build ghost
   const ghost = buildGhost(cards, el);
   document.body.appendChild(ghost);
-
-  // Position ghost under pointer
-  const rect = el.getBoundingClientRect();
-  const offX = clientX - rect.left;
-  const offY = clientY - rect.top;
-
   drag = { source, colOrIdx, count, ghost, cards, offX, offY };
   positionGhost(clientX, clientY);
 
-  // Mark originals as dim
+  // Dim originals
   if (source === 'waste') {
     document.getElementById('waste').lastChild?.classList.add('dragging');
   } else {
@@ -329,10 +406,7 @@ function startDrag(clientX, clientY, el, source, colOrIdx, count) {
     }
   }
 
-  document.addEventListener('mousemove', onDragMove);
-  document.addEventListener('mouseup',   onDragEnd);
-  document.addEventListener('touchmove', onTouchMove, { passive: false });
-  document.addEventListener('touchend',  onTouchEnd);
+  dragOccurred = true;
 }
 
 function buildGhost(cards, refEl) {
@@ -361,18 +435,41 @@ function positionGhost(x, y) {
   drag.ghost.style.top  = `${y - drag.offY}px`;
 }
 
-function onDragMove(e) { positionGhost(e.clientX, e.clientY); dragOccurred = true; }
-function onTouchMove(e) {
-  e.preventDefault();
-  const t = e.touches[0];
-  positionGhost(t.clientX, t.clientY);
-  dragOccurred = true;
+function onDragMove(e) {
+  if (pendingDrag && !drag) {
+    const dx = e.clientX - pendingDrag.startX;
+    const dy = e.clientY - pendingDrag.startY;
+    if (Math.hypot(dx, dy) >= DRAG_THRESHOLD) activateDrag(e.clientX, e.clientY);
+  }
+  if (drag) { positionGhost(e.clientX, e.clientY); dragOccurred = true; }
 }
+
+function onTouchMove(e) {
+  const t = e.touches[0];
+  if (pendingDrag && !drag) {
+    const dx = t.clientX - pendingDrag.startX;
+    const dy = t.clientY - pendingDrag.startY;
+    if (Math.hypot(dx, dy) >= DRAG_THRESHOLD) activateDrag(t.clientX, t.clientY);
+  }
+  if (drag) { e.preventDefault(); positionGhost(t.clientX, t.clientY); dragOccurred = true; }
+}
+
 function onTouchEnd(e) {
   const t = e.changedTouches[0];
-  const target = document.elementFromPoint(t.clientX, t.clientY);
-  endDrag(target);
+  if (!drag && pendingDrag) {
+    // Tap (no movement) — treat as smart move
+    const { source, colOrIdx, count } = pendingDrag;
+    pendingDrag = null;
+    document.removeEventListener('mousemove', onDragMove);
+    document.removeEventListener('mouseup',   onDragEnd);
+    document.removeEventListener('touchmove', onTouchMove);
+    document.removeEventListener('touchend',  onTouchEnd);
+    smartMove(source, colOrIdx, count);
+    return;
+  }
+  endDrag(document.elementFromPoint(t.clientX, t.clientY));
 }
+
 function onDragEnd(e) { endDrag(e.target); }
 
 function endDrag(targetEl) {
@@ -380,6 +477,8 @@ function endDrag(targetEl) {
   document.removeEventListener('mouseup',   onDragEnd);
   document.removeEventListener('touchmove', onTouchMove);
   document.removeEventListener('touchend',  onTouchEnd);
+
+  pendingDrag = null; // discard if it was just a click
 
   if (!drag) return;
 
