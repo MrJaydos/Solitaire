@@ -7,11 +7,11 @@
   const btn = document.getElementById('btn-dark-mode');
   const isLight = localStorage.getItem('solitaire-theme') === 'light';
   if (isLight) {
-    document.body.classList.add('light');
+    document.documentElement.classList.add('light');
     btn.textContent = '🌙';
   }
   btn.addEventListener('click', () => {
-    const nowLight = document.body.classList.toggle('light');
+    const nowLight = document.documentElement.classList.toggle('light');
     localStorage.setItem('solitaire-theme', nowLight ? 'light' : 'dark');
     btn.textContent = nowLight ? '🌙' : '☀';
   });

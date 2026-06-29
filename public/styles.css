@@ -20,7 +20,7 @@
 }
 
 /* ─── Light mode ────────────────────────────────────────────── */
-body.light {
+html.light {
   --felt:        #3a8f5a;
   --felt-dark:   #2e7a4a;
   --felt-light:  #45a868;
@@ -32,15 +32,15 @@ body.light {
   --modal-bg:    #d4edda;
 }
 
-body.light h1               { color: #0f5a28; }
-body.light .card            { border-color: #bbb; }
-body.light .card.face-down  {
+html.light h1               { color: #0f5a28; }
+html.light .card            { border-color: #bbb; }
+html.light .card.face-down  {
   background: repeating-linear-gradient(135deg,#2060c0 0 4px,#1a50aa 4px 8px);
   border-color: #1a50aa;
 }
-body.light #win-modal,
-body.light #leaderboard-modal { color: var(--text); }
-body.light #leaderboard-content th { color: var(--text-dim); }
+html.light #win-modal,
+html.light #leaderboard-modal { color: var(--text); }
+html.light #leaderboard-content th { color: var(--text-dim); }
 
 html, body {
   height: 100%;
