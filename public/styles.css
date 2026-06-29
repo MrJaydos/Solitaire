@@ -5,8 +5,8 @@
   --felt:       #1a5c38;
   --felt-dark:  #134a2c;
   --felt-light: #1e6d43;
-  --card-w:     72px;
-  --card-h:     100px;
+  --card-w:     84px;
+  --card-h:     116px;
   --card-r:     6px;
   --pile-border: rgba(255,255,255,0.12);
   --text:        #e8f0eb;
@@ -108,7 +108,7 @@ button:active { transform: scale(0.97); }
   display: flex;
   flex-direction: column;
   gap: var(--gap);
-  max-width: 680px;
+  max-width: 760px;
   margin: 0 auto;
   width: 100%;
 }

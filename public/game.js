@@ -174,9 +174,6 @@ function checkWin() {
 }
 
 /* ─── Smart auto-move on click ──────────────────────────────── */
-// Tries foundation first (single cards only), then every tableau column.
-// source: 'waste' | 'tableau'   colOrIdx: column index for tableau
-// count: how many cards in the sequence starting from the clicked card
 function smartMove(source, colOrIdx, count) {
   let cards;
   if (source === 'waste') {
@@ -187,40 +184,102 @@ function smartMove(source, colOrIdx, count) {
   }
   const card = cards[0];
 
-  // 1. Foundation — single cards only
+  // --- Find destination ---
+  let dest = null;
+
   if (cards.length === 1) {
     const fi = foundationIndexForCard(card);
-    if (fi !== -1) {
-      removeFromSource(source, colOrIdx, count);
-      state.foundations[fi].push(card);
-      recordMove();
-      flipTopTableau();
-      render();
-      checkWin();
-      return true;
-    }
+    if (fi !== -1) dest = { type: 'foundation', idx: fi };
   }
 
-  // 2. Best tableau column: prefer non-empty columns, then empty
-  for (const preferEmpty of [false, true]) {
-    for (let destCol = 0; destCol < 7; destCol++) {
-      if (source === 'tableau' && destCol === colOrIdx) continue;
-      const destCards = state.tableau[destCol];
-      if (preferEmpty !== (destCards.length === 0)) continue;
-      const topCard = destCards.length > 0 ? destCards[destCards.length - 1] : null;
-      if (canStackOnTableau(card, topCard)) {
-        removeFromSource(source, colOrIdx, count);
-        state.tableau[destCol].push(...cards);
-        recordMove();
-        flipTopTableau();
-        render();
-        checkWin();
-        return true;
+  if (!dest) {
+    outer: for (const preferEmpty of [false, true]) {
+      for (let destCol = 0; destCol < 7; destCol++) {
+        if (source === 'tableau' && destCol === colOrIdx) continue;
+        const destCards = state.tableau[destCol];
+        if (preferEmpty !== (destCards.length === 0)) continue;
+        const topCard = destCards.length > 0 ? destCards[destCards.length - 1] : null;
+        if (canStackOnTableau(card, topCard)) {
+          dest = { type: 'tableau', idx: destCol };
+          break outer;
+        }
       }
     }
   }
 
-  return false;
+  if (!dest) return false;
+
+  // Snapshot source positions before DOM changes
+  const sourceRects = captureSourceRects(source, colOrIdx, count);
+
+  // Apply move
+  if (dest.type === 'foundation') {
+    removeFromSource(source, colOrIdx, count);
+    state.foundations[dest.idx].push(card);
+  } else {
+    removeFromSource(source, colOrIdx, count);
+    state.tableau[dest.idx].push(...cards);
+  }
+  recordMove();
+  flipTopTableau();
+  render();
+  checkWin();
+
+  // Animate the cards flying to their new home
+  animateSmartMove(sourceRects, dest, count);
+
+  return true;
+}
+
+function captureSourceRects(source, colOrIdx, count) {
+  if (source === 'waste') {
+    const el = document.getElementById('waste').lastChild;
+    return el ? [el.getBoundingClientRect()] : [];
+  }
+  const colEl = document.querySelectorAll('.tableau-col')[colOrIdx];
+  const allCards = colEl.querySelectorAll('.card');
+  return Array.from(allCards).slice(allCards.length - count)
+    .map(el => el.getBoundingClientRect());
+}
+
+function animateSmartMove(sourceRects, dest, count) {
+  let destEls;
+  if (dest.type === 'foundation') {
+    const foundEl = document.querySelector(`.foundation[data-foundation="${dest.idx}"]`);
+    const last = foundEl?.lastChild;
+    destEls = last ? [last] : [];
+  } else {
+    const colEl = document.querySelectorAll('.tableau-col')[dest.idx];
+    const allCards = colEl.querySelectorAll('.card');
+    destEls = Array.from(allCards).slice(Math.max(0, allCards.length - count));
+  }
+
+  destEls.forEach((el, i) => {
+    const src = sourceRects[i];
+    if (!src) return;
+    const dst = el.getBoundingClientRect();
+    const dx = src.left - dst.left;
+    const dy = src.top  - dst.top;
+
+    // Place at source position instantly, then transition to final spot
+    el.style.transition = 'none';
+    el.style.transform  = `translate(${dx}px, ${dy}px)`;
+    el.style.zIndex     = '50';
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        el.style.transition      = `transform 0.22s cubic-bezier(0.25, 0.1, 0.25, 1)`;
+        el.style.transitionDelay = `${i * 18}ms`;
+        el.style.transform       = 'translate(0, 0)';
+        el.addEventListener('transitionend', () => {
+          el.style.cssText = el.style.cssText
+            .replace(/transition[^;]*;?/g, '')
+            .replace(/transform[^;]*;?/g, '')
+            .replace(/z-index[^;]*;?/g, '');
+        }, { once: true });
+      });
+    });
+  });
 }
 
 function flipTopTableau() {
@@ -305,8 +364,8 @@ function renderFoundations() {
   });
 }
 
-const FACE_DOWN_OFFSET = 18;
-const FACE_UP_OFFSET   = 26;
+const FACE_DOWN_OFFSET = 20;
+const FACE_UP_OFFSET   = 30;
 
 function renderTableau() {
   document.querySelectorAll('.tableau-col').forEach((el, col) => {
