@@ -1,0 +1,432 @@
+/* ─── Reset & base ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --felt:       #1a5c38;
+  --felt-dark:  #134a2c;
+  --felt-light: #1e6d43;
+  --card-w:     72px;
+  --card-h:     100px;
+  --card-r:     6px;
+  --pile-border: rgba(255,255,255,0.12);
+  --text:        #e8f0eb;
+  --text-dim:    rgba(232,240,235,0.55);
+  --accent:      #f0c040;
+  --red:         #e03030;
+  --shadow:      0 2px 8px rgba(0,0,0,0.45);
+  --gap:         14px;
+}
+
+html, body {
+  height: 100%;
+  background: var(--felt-dark);
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  overflow-x: hidden;
+}
+
+/* ─── Layout ───────────────────────────────────────────────── */
+#app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+header {
+  background: rgba(0,0,0,0.25);
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--accent);
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+
+#controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+#stats {
+  display: flex;
+  gap: 16px;
+  font-size: 0.95rem;
+  color: var(--text-dim);
+}
+
+#timer-display {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text);
+  min-width: 3.5ch;
+}
+
+#buttons {
+  display: flex;
+  gap: 8px;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 16px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  transition: background 0.15s, transform 0.1s;
+}
+
+button:active { transform: scale(0.97); }
+
+#btn-new-game {
+  background: var(--accent);
+  color: #1a1a1a;
+}
+#btn-new-game:hover { background: #f5cc55; }
+
+#btn-leaderboard {
+  background: rgba(255,255,255,0.1);
+  color: var(--text);
+  border: 1px solid rgba(255,255,255,0.18);
+}
+#btn-leaderboard:hover { background: rgba(255,255,255,0.16); }
+
+#game-area {
+  flex: 1;
+  padding: var(--gap);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  max-width: 680px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ─── Top row ──────────────────────────────────────────────── */
+#top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--gap);
+}
+
+#stock-waste {
+  display: flex;
+  gap: var(--gap);
+}
+
+#foundations {
+  display: flex;
+  gap: var(--gap);
+}
+
+/* ─── Tableau ──────────────────────────────────────────────── */
+#tableau {
+  display: flex;
+  gap: var(--gap);
+  align-items: flex-start;
+}
+
+/* ─── Pile slots ───────────────────────────────────────────── */
+.pile {
+  width: var(--card-w);
+  min-height: var(--card-h);
+  border-radius: var(--card-r);
+  border: 2px dashed var(--pile-border);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.pile.drag-over {
+  border-color: var(--accent);
+  background: rgba(240,192,64,0.08);
+}
+
+.stock-pile {
+  cursor: pointer;
+}
+
+.foundation::before {
+  content: attr(data-suit);
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  color: var(--pile-border);
+  pointer-events: none;
+}
+
+/* ─── Cards ────────────────────────────────────────────────── */
+.card {
+  position: absolute;
+  width: var(--card-w);
+  height: var(--card-h);
+  border-radius: var(--card-r);
+  background: #fff;
+  border: 1px solid #ccc;
+  box-shadow: var(--shadow);
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 3px 4px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  transition: box-shadow 0.1s;
+}
+
+.card:active { cursor: grabbing; }
+
+.card.red  { color: var(--red); }
+.card.black { color: #1a1a1a; }
+
+.card .rank-suit-tl { line-height: 1; }
+.card .rank-suit-br {
+  align-self: flex-end;
+  transform: rotate(180deg);
+  line-height: 1;
+}
+
+.card .rank { display: block; font-size: 1rem; }
+.card .suit { display: block; font-size: 0.75rem; }
+
+/* Face-down card */
+.card.face-down {
+  background: repeating-linear-gradient(
+    135deg,
+    #1c4ea0 0px, #1c4ea0 4px,
+    #1a3d80 4px, #1a3d80 8px
+  );
+  border-color: #1a3d80;
+  cursor: default;
+}
+
+.card.face-down::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 2px solid rgba(255,255,255,0.15);
+  border-radius: calc(var(--card-r) - 2px);
+}
+
+/* Dragging ghost */
+.card.dragging {
+  opacity: 0.5;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+/* drag clone */
+#drag-ghost {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  transform-origin: top left;
+}
+
+/* Stock empty - recycle indicator */
+.stock-pile.empty::before {
+  content: '↺';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  color: var(--pile-border);
+  pointer-events: none;
+}
+
+/* Top card of waste visible */
+.waste-pile .card:not(:last-child) {
+  pointer-events: none;
+}
+
+/* Tableau stacking offset */
+.tableau-col .card { top: 0; }
+
+/* ─── Overlays ─────────────────────────────────────────────── */
+.hidden { display: none !important; }
+
+#win-overlay,
+#leaderboard-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+#win-modal,
+#leaderboard-modal {
+  background: #0f3d22;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 14px;
+  padding: 28px 32px;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+  position: relative;
+}
+
+#win-modal h2,
+#leaderboard-modal h2 {
+  font-size: 1.6rem;
+  color: var(--accent);
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+#win-time, #win-moves {
+  text-align: center;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+  font-size: 1rem;
+}
+
+#win-time { font-size: 1.2rem; color: var(--text); font-weight: 600; }
+
+#submit-form {
+  margin: 18px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#submit-form label {
+  font-size: 0.9rem;
+  color: var(--text-dim);
+}
+
+#player-name {
+  padding: 9px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.07);
+  color: var(--text);
+  font-size: 1rem;
+  outline: none;
+}
+
+#player-name:focus { border-color: var(--accent); }
+
+#submit-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+#btn-submit-score {
+  flex: 1;
+  background: var(--accent);
+  color: #1a1a1a;
+  padding: 9px;
+}
+#btn-submit-score:hover { background: #f5cc55; }
+#btn-submit-score:disabled { opacity: 0.5; cursor: default; }
+
+#btn-skip-submit {
+  background: rgba(255,255,255,0.08);
+  color: var(--text);
+  border: 1px solid rgba(255,255,255,0.15);
+}
+
+#submit-status {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  text-align: center;
+  min-height: 1.2em;
+}
+
+#btn-play-again {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  background: rgba(255,255,255,0.08);
+  color: var(--text);
+  border: 1px solid rgba(255,255,255,0.15);
+  padding: 10px;
+}
+#btn-play-again:hover { background: rgba(255,255,255,0.14); }
+
+/* Leaderboard */
+#leaderboard-modal { max-width: 480px; max-height: 80vh; overflow-y: auto; }
+
+#btn-close-lb {
+  position: absolute;
+  top: 12px; right: 16px;
+  background: none;
+  color: var(--text-dim);
+  font-size: 1.1rem;
+  padding: 4px 8px;
+}
+#btn-close-lb:hover { color: var(--text); }
+
+#leaderboard-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-size: 0.9rem;
+}
+
+#leaderboard-content th {
+  text-align: left;
+  padding: 6px 8px;
+  color: var(--text-dim);
+  font-weight: 600;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+#leaderboard-content td {
+  padding: 8px 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+#leaderboard-content tr:first-child td { color: var(--accent); font-weight: 700; }
+
+#leaderboard-content .rank { width: 36px; color: var(--text-dim); }
+#leaderboard-content .time-col { width: 80px; font-variant-numeric: tabular-nums; }
+#leaderboard-content .date-col { width: 90px; color: var(--text-dim); font-size: 0.8rem; }
+
+.lb-empty {
+  text-align: center;
+  color: var(--text-dim);
+  padding: 24px 0;
+  font-style: italic;
+}
+
+/* ─── Responsive ───────────────────────────────────────────── */
+@media (max-width: 600px) {
+  :root {
+    --card-w: 52px;
+    --card-h: 72px;
+    --gap: 8px;
+  }
+
+  h1 { font-size: 1.1rem; }
+  header { padding: 8px 12px; }
+  #game-area { padding: 8px; }
+
+  .card { font-size: 0.65rem; padding: 2px 3px; }
+  .card .rank { font-size: 0.8rem; }
+  .card .suit { font-size: 0.6rem; }
+  .foundation::before { font-size: 1.3rem; }
+}

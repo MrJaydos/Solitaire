@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Solitaire</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>Solitaire</h1>
+      <div id="controls">
+        <div id="stats">
+          <span id="timer-display">0:00</span>
+          <span id="move-counter">0 moves</span>
+        </div>
+        <div id="buttons">
+          <button id="btn-new-game">New Game</button>
+          <button id="btn-leaderboard">Leaderboard</button>
+        </div>
+      </div>
+    </header>
+
+    <main id="game-area">
+      <section id="top-row">
+        <div id="stock-waste">
+          <div id="stock" class="pile stock-pile" title="Click to draw"></div>
+          <div id="waste" class="pile waste-pile"></div>
+        </div>
+        <div id="foundations">
+          <div class="pile foundation" data-foundation="0" data-suit="♠"></div>
+          <div class="pile foundation" data-foundation="1" data-suit="♥"></div>
+          <div class="pile foundation" data-foundation="2" data-suit="♦"></div>
+          <div class="pile foundation" data-foundation="3" data-suit="♣"></div>
+        </div>
+      </section>
+
+      <section id="tableau">
+        <div class="pile tableau-col" data-col="0"></div>
+        <div class="pile tableau-col" data-col="1"></div>
+        <div class="pile tableau-col" data-col="2"></div>
+        <div class="pile tableau-col" data-col="3"></div>
+        <div class="pile tableau-col" data-col="4"></div>
+        <div class="pile tableau-col" data-col="5"></div>
+        <div class="pile tableau-col" data-col="6"></div>
+      </section>
+    </main>
+
+    <!-- Win overlay -->
+    <div id="win-overlay" class="hidden">
+      <div id="win-modal">
+        <h2>You Won!</h2>
+        <p id="win-time"></p>
+        <p id="win-moves"></p>
+        <div id="submit-form">
+          <label for="player-name">Enter your name for the leaderboard:</label>
+          <input type="text" id="player-name" maxlength="20" placeholder="Your name" autocomplete="off" />
+          <div id="submit-buttons">
+            <button id="btn-submit-score">Submit Score</button>
+            <button id="btn-skip-submit">Skip</button>
+          </div>
+          <p id="submit-status"></p>
+        </div>
+        <button id="btn-play-again">Play Again</button>
+      </div>
+    </div>
+
+    <!-- Leaderboard modal -->
+    <div id="leaderboard-overlay" class="hidden">
+      <div id="leaderboard-modal">
+        <button id="btn-close-lb" aria-label="Close">✕</button>
+        <h2>Leaderboard</h2>
+        <div id="leaderboard-content">Loading…</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+  <script src="leaderboard.js"></script>
+</body>
+</html>
