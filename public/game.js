@@ -78,6 +78,7 @@ function newGame() {
   resetTimer();
   clearTimeout(hintTimeout);
   clearHint();
+  stopCelebration();
   document.getElementById('move-counter').textContent = '0 moves';
   const deck = shuffle(buildDeck());
   const tableau = Array.from({ length: 7 }, () => []);
@@ -177,7 +178,8 @@ function checkWin() {
     stopTimer();
     clearTimeout(hintTimeout);
     clearHint();
-    setTimeout(showWin, 400);
+    startCelebration(state.foundations.map(f => [...f]));
+    setTimeout(showWin, 1000);
   }
 }
 
