@@ -305,6 +305,61 @@ button:disabled { opacity: 0.35; cursor: default; transform: none; }
   pointer-events: none;
 }
 
+/* ─── Card centre designs ──────────────────────────────────── */
+.card-center {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  top: calc(var(--card-h) * 0.27);
+  bottom: calc(var(--card-h) * 0.27);
+  pointer-events: none;
+}
+
+/* Pip number cards */
+.card-pips { position: relative; }
+
+.pip {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-size: calc(var(--card-w) * 0.175);
+  line-height: 1;
+  display: block;
+}
+
+.pip-flip { transform: translate(-50%, -50%) rotate(180deg); }
+
+.pip-ace {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: calc(var(--card-w) * 0.46);
+}
+
+/* Face cards (J Q K) */
+.card-face-frame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  border: 1.5px solid currentColor;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.18);
+}
+
+.face-letter {
+  font-size: calc(var(--card-w) * 0.37);
+  font-weight: 900;
+  font-style: italic;
+  line-height: 1;
+}
+
+.face-suit {
+  font-size: calc(var(--card-w) * 0.20);
+  line-height: 1;
+}
+
 /* Tableau stacking offset */
 .tableau-col .card { top: 0; }
 
@@ -496,4 +551,5 @@ button:disabled { opacity: 0.35; cursor: default; transform: none; }
   .card .suit { font-size: 0.6rem; }
   .foundation::before { font-size: 1.3rem; }
   .waste-pile { width: calc(var(--card-w) + 14px); } /* 2 × 7px fan offset on mobile */
+  .card-center { top: calc(var(--card-h) * 0.34); bottom: calc(var(--card-h) * 0.34); }
 }
