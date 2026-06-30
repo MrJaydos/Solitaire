@@ -367,37 +367,17 @@ html.light #stock-passes { color: rgba(0,0,0,0.45); }
 
 .pip-flip { transform: translate(-50%, -50%) rotate(180deg); }
 
-.pip-ace {
+.pip-ace,
+.pip-face {
   position: absolute;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  font-size: calc(var(--card-w) * 0.46);
-}
-
-/* Face cards (J Q K) */
-.card-face-frame {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1px;
-  border: 1.5px solid currentColor;
-  border-radius: 3px;
-  background: rgba(255,255,255,0.18);
-}
-
-.face-letter {
-  font-size: calc(var(--card-w) * 0.37);
-  font-weight: 900;
-  font-style: italic;
   line-height: 1;
 }
 
-.face-suit {
-  font-size: calc(var(--card-w) * 0.20);
-  line-height: 1;
-}
+.pip-ace  { font-size: calc(var(--card-w) * 0.46); }
+.pip-face { font-size: calc(var(--card-w) * 0.36); }
 
 /* Tableau stacking offset */
 .tableau-col .card { top: 0; }

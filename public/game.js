@@ -475,10 +475,7 @@ function buildCardCenter(rank, suit) {
     return `<div class="card-center"><span class="pip pip-ace">${suit}</span></div>`;
   }
   if (['J','Q','K'].includes(rank)) {
-    return `<div class="card-center card-face-frame">
-      <span class="face-letter">${rank}</span>
-      <span class="face-suit">${suit}</span>
-    </div>`;
+    return `<div class="card-center"><span class="pip pip-face">${suit}</span></div>`;
   }
   const pips = (PIP_POSITIONS[rank] || []).map(([x, y]) =>
     `<span class="pip${y > 0.55 ? ' pip-flip' : ''}" style="left:${x*100}%;top:${y*100}%">${suit}</span>`
