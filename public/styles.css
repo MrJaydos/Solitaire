@@ -19,6 +19,20 @@
   --modal-bg:    #0f3d22;
 }
 
+/* ─── Hard mode — red felt ──────────────────────────────────── */
+html.hard-mode {
+  --felt:       #4a0f0f;
+  --felt-dark:  #3a0808;
+  --felt-light: #5e1212;
+  --modal-bg:   #3a0808;
+}
+html.light.hard-mode {
+  --felt:       #8b1a1a;
+  --felt-dark:  #7a1212;
+  --felt-light: #a02020;
+  --modal-bg:   #f5d0d0;
+}
+
 /* ─── Light mode ────────────────────────────────────────────── */
 html.light {
   --felt:        #3a8f5a;
@@ -39,7 +53,8 @@ html.light .card.face-down  {
   border-color: #1a50aa;
 }
 html.light #win-modal,
-html.light #leaderboard-modal { color: var(--text); }
+html.light #leaderboard-modal,
+html.light .modal-box { color: var(--text); }
 html.light #leaderboard-content th { color: var(--text-dim); }
 
 html, body {
@@ -144,27 +159,38 @@ button:disabled { opacity: 0.35; cursor: default; transform: none; }
 }
 #btn-leaderboard:hover { background: rgba(255,255,255,0.16); }
 
-#btn-hard-mode {
+#btn-hard-mode, #btn-draw-toggle, #btn-stats, #btn-sound {
   background: rgba(255,255,255,0.08);
   color: var(--text);
   border: 1px solid rgba(255,255,255,0.15);
 }
-#btn-hard-mode:hover { background: rgba(255,255,255,0.14); }
+#btn-hard-mode:hover, #btn-draw-toggle:hover, #btn-stats:hover, #btn-sound:hover {
+  background: rgba(255,255,255,0.14);
+}
+
 #btn-hard-mode.hard-active {
   background: #c0392b;
   border-color: #922b21;
   color: #fff;
 }
 #btn-hard-mode.hard-active:hover { background: #e74c3c; }
+html.light #btn-hard-mode.hard-active { background: #e74c3c; border-color: #c0392b; }
 
-html.light #btn-hard-mode.hard-active {
-  background: #e74c3c;
-  border-color: #c0392b;
+#btn-draw-toggle.draw-one {
+  background: #1a4a7a;
+  border-color: #123460;
   color: #fff;
 }
+#btn-draw-toggle.draw-one:hover { background: #1f5a94; }
+
+#btn-sound { padding: 7px 10px; font-size: 1rem; }
+#btn-sound.muted { opacity: 0.5; }
 
 /* Hide undo button in hard mode */
 html.hard-mode #btn-undo { display: none; }
+
+/* Narrow waste pile in draw-1 mode */
+html.draw-one .waste-pile { width: var(--card-w); }
 
 #game-area {
   flex: 1;
@@ -288,23 +314,34 @@ html.light #stock-passes { color: rgba(0,0,0,0.45); }
 .card .rank { display: block; font-size: 1rem; }
 .card .suit { display: block; font-size: 0.75rem; }
 
-/* Face-down card */
+/* Face-down card — navy with subtle checker and inner frame */
 .card.face-down {
-  background: repeating-linear-gradient(
-    135deg,
-    #1c4ea0 0px, #1c4ea0 4px,
-    #1a3d80 4px, #1a3d80 8px
-  );
-  border-color: #1a3d80;
+  background: #1a3a6e;
+  border-color: #122851;
   cursor: default;
+}
+
+.card.face-down::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--card-r);
+  background: repeating-conic-gradient(
+    rgba(255,255,255,0.045) 0% 25%, transparent 0% 50%
+  ) 0 0 / 10px 10px;
 }
 
 .card.face-down::after {
   content: '';
   position: absolute;
-  inset: 4px;
-  border: 2px solid rgba(255,255,255,0.15);
-  border-radius: calc(var(--card-r) - 2px);
+  inset: 5px;
+  border: 1.5px solid rgba(255,255,255,0.22);
+  border-radius: calc(var(--card-r) - 3px);
+}
+
+html.light .card.face-down {
+  background: #1a3a6e;
+  border-color: #122851;
 }
 
 /* Dragging ghost */
@@ -334,6 +371,10 @@ html.light #stock-passes { color: rgba(0,0,0,0.45); }
   color: var(--pile-border);
   pointer-events: none;
 }
+
+/* Stock exhausted in hard mode */
+.stock-pile.exhausted { opacity: 0.4; cursor: not-allowed; }
+.stock-pile.exhausted::before { content: '✕'; color: rgba(230,60,60,0.7); }
 
 /* Waste pile widens to show 3 fanned cards */
 .waste-pile {
@@ -371,7 +412,8 @@ html.light #stock-passes { color: rgba(0,0,0,0.45); }
 .hidden { display: none !important; }
 
 #win-overlay,
-#leaderboard-overlay {
+#leaderboard-overlay,
+#stats-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.6);
@@ -383,7 +425,8 @@ html.light #stock-passes { color: rgba(0,0,0,0.45); }
 }
 
 #win-modal,
-#leaderboard-modal {
+#leaderboard-modal,
+.modal-box {
   background: var(--modal-bg);
   border: 1px solid rgba(255,255,255,0.15);
   border-radius: 14px;
@@ -392,10 +435,12 @@ html.light #stock-passes { color: rgba(0,0,0,0.45); }
   width: 100%;
   box-shadow: 0 12px 40px rgba(0,0,0,0.6);
   position: relative;
+  color: var(--text);
 }
 
 #win-modal h2,
-#leaderboard-modal h2 {
+#leaderboard-modal h2,
+.modal-box h2 {
   font-size: 1.6rem;
   color: var(--accent);
   margin-bottom: 12px;
@@ -519,6 +564,66 @@ html.light #stock-passes { color: rgba(0,0,0,0.45); }
   font-style: italic;
 }
 
+/* ─── Stats modal ──────────────────────────────────────────── */
+#stats-modal { max-width: 360px; }
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin: 20px 0;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 8px;
+  padding: 12px 6px;
+}
+
+.stat-val {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-label {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  text-align: center;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+#btn-reset-stats {
+  display: block;
+  width: 100%;
+  background: rgba(255,255,255,0.06);
+  color: var(--text-dim);
+  border: 1px solid rgba(255,255,255,0.1);
+  padding: 9px;
+  margin-top: 4px;
+  font-size: 0.82rem;
+}
+#btn-reset-stats:hover { background: rgba(220,60,60,0.15); color: #e57373; border-color: rgba(220,60,60,0.3); }
+
+.btn-close-modal {
+  position: absolute;
+  top: 12px; right: 16px;
+  background: none;
+  color: var(--text-dim);
+  font-size: 1.1rem;
+  padding: 4px 8px;
+}
+.btn-close-modal:hover { color: var(--text); }
+
+/* Leaderboard moves column */
+#leaderboard-content .moves-col { width: 60px; font-variant-numeric: tabular-nums; }
+
 /* ─── Hint highlight ───────────────────────────────────────── */
 @keyframes hint-card-pulse {
   0%, 100% { box-shadow: var(--shadow), 0 0 0 2px var(--accent), 0 0 12px rgba(240,192,64,0.45); }
@@ -547,6 +652,8 @@ html.light #stock-passes { color: rgba(0,0,0,0.45); }
   }
 
   h1 { font-size: 1.1rem; }
+  #buttons { flex-wrap: wrap; row-gap: 5px; justify-content: flex-end; }
+  #buttons button { padding: 5px 10px; font-size: 0.78rem; }
   header { padding: 8px 12px; }
   #game-area { padding: 8px; }
 

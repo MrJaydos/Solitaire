@@ -19,6 +19,9 @@
           <button id="btn-new-game">New Game</button>
           <button id="btn-undo" disabled>Undo</button>
           <button id="btn-hard-mode">Hard Mode</button>
+          <button id="btn-draw-toggle">Draw 3</button>
+          <button id="btn-stats">Stats</button>
+          <button id="btn-sound" title="Toggle sound">🔊</button>
           <button id="btn-leaderboard">Leaderboard</button>
           <button id="btn-dark-mode" title="Toggle dark/light mode">☀</button>
         </div>
@@ -69,6 +72,23 @@
           <p id="submit-status"></p>
         </div>
         <button id="btn-play-again">Play Again</button>
+      </div>
+    </div>
+
+    <!-- Stats modal -->
+    <div id="stats-overlay" class="hidden">
+      <div id="stats-modal" class="modal-box">
+        <button id="btn-close-stats" class="btn-close-modal" aria-label="Close">✕</button>
+        <h2>My Stats</h2>
+        <div class="stats-grid">
+          <div class="stat-item"><span class="stat-val" id="stat-played">0</span><span class="stat-label">Played</span></div>
+          <div class="stat-item"><span class="stat-val" id="stat-won">0</span><span class="stat-label">Won</span></div>
+          <div class="stat-item"><span class="stat-val" id="stat-rate">0%</span><span class="stat-label">Win Rate</span></div>
+          <div class="stat-item"><span class="stat-val" id="stat-best">--</span><span class="stat-label">Best Time</span></div>
+          <div class="stat-item"><span class="stat-val" id="stat-streak">0</span><span class="stat-label">Streak</span></div>
+          <div class="stat-item"><span class="stat-val" id="stat-longest">0</span><span class="stat-label">Best Streak</span></div>
+        </div>
+        <button id="btn-reset-stats">Reset Stats</button>
       </div>
     </div>
 

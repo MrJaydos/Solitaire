@@ -22,11 +22,13 @@ db.exec(`
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     name         TEXT    NOT NULL,
     time_ms      INTEGER NOT NULL,
+    moves        INTEGER NOT NULL DEFAULT 0,
     submitted_at TEXT    NOT NULL,
     ip           TEXT    NOT NULL
   );
   CREATE INDEX IF NOT EXISTS idx_time ON scores(time_ms ASC);
 `);
+try { db.exec(`ALTER TABLE scores ADD COLUMN moves INTEGER NOT NULL DEFAULT 0`); } catch (_) {}
 
 const submitLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -47,7 +49,7 @@ function sanitizeName(raw) {
 // GET /api/scores
 app.get('/api/scores', (req, res) => {
   const rows = db.prepare(`
-    SELECT name, time_ms AS timeMs, submitted_at AS date
+    SELECT name, time_ms AS timeMs, moves, submitted_at AS date
     FROM scores
     ORDER BY time_ms ASC
     LIMIT 20
@@ -57,6 +59,7 @@ app.get('/api/scores', (req, res) => {
     rank: i + 1,
     name: r.name,
     timeMs: r.timeMs,
+    moves: r.moves || 0,
     date: r.date.slice(0, 10),
   }));
 
@@ -65,7 +68,7 @@ app.get('/api/scores', (req, res) => {
 
 // POST /api/scores
 app.post('/api/scores', submitLimiter, (req, res) => {
-  const { name, timeMs } = req.body;
+  const { name, timeMs, moves } = req.body;
 
   if (typeof timeMs !== 'number' || !Number.isFinite(timeMs)) {
     return res.status(400).json({ error: 'timeMs must be a number.' });
@@ -82,12 +85,13 @@ app.post('/api/scores', submitLimiter, (req, res) => {
     return res.status(400).json({ error: 'name cannot be empty.' });
   }
 
+  const cleanMoves = (typeof moves === 'number' && Number.isFinite(moves)) ? Math.max(0, Math.round(moves)) : 0;
   const now = new Date().toISOString();
   const ip = req.ip || 'unknown';
 
   db.prepare(`
-    INSERT INTO scores (name, time_ms, submitted_at, ip) VALUES (?, ?, ?, ?)
-  `).run(cleanName, Math.round(timeMs), now, ip);
+    INSERT INTO scores (name, time_ms, moves, submitted_at, ip) VALUES (?, ?, ?, ?, ?)
+  `).run(cleanName, Math.round(timeMs), cleanMoves, now, ip);
 
   const rank = db.prepare(`
     SELECT COUNT(*) AS r FROM scores WHERE time_ms <= ?

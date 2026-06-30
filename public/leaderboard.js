@@ -42,6 +42,7 @@ function renderLeaderboard(scores) {
       <td class="rank">${s.rank}</td>
       <td>${escHtml(s.name)}</td>
       <td class="time-col">${formatTime(s.timeMs)}</td>
+      <td class="moves-col">${s.moves || '--'}</td>
       <td class="date-col">${s.date}</td>
     </tr>
   `).join('');
@@ -53,6 +54,7 @@ function renderLeaderboard(scores) {
           <th class="rank">#</th>
           <th>Name</th>
           <th class="time-col">Time</th>
+          <th class="moves-col">Moves</th>
           <th class="date-col">Date</th>
         </tr>
       </thead>
@@ -118,6 +120,7 @@ async function submitScore() {
   localStorage.setItem('solitaire-name', name);
 
   const timeMs = window.lastWinMs;
+  const moves  = window.lastWinMoves || 0;
   if (!timeMs || timeMs < 1) {
     statusEl.textContent = 'Invalid time — please play a full game.';
     return;
@@ -130,7 +133,7 @@ async function submitScore() {
     const res = await fetch('/api/scores', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, timeMs }),
+      body: JSON.stringify({ name, timeMs, moves }),
     });
 
     const data = await res.json();
@@ -152,3 +155,38 @@ async function submitScore() {
     submitBtn.disabled = false;
   }
 }
+
+/* ─── Stats modal ───────────────────────────────────────────── */
+function renderStats() {
+  const s = (() => {
+    try { return { played:0, won:0, bestTime:null, streak:0, longestStreak:0,
+                   ...JSON.parse(localStorage.getItem('solitaire-stats')) }; }
+    catch { return { played:0, won:0, bestTime:null, streak:0, longestStreak:0 }; }
+  })();
+  const rate = s.played > 0 ? Math.round(s.won / s.played * 100) : 0;
+  document.getElementById('stat-played').textContent  = s.played;
+  document.getElementById('stat-won').textContent     = s.won;
+  document.getElementById('stat-rate').textContent    = `${rate}%`;
+  document.getElementById('stat-best').textContent    = s.bestTime != null ? formatTime(s.bestTime) : '--';
+  document.getElementById('stat-streak').textContent  = s.streak;
+  document.getElementById('stat-longest').textContent = s.longestStreak;
+}
+
+document.getElementById('btn-stats').addEventListener('click', () => {
+  renderStats();
+  document.getElementById('stats-overlay').classList.remove('hidden');
+});
+
+document.getElementById('btn-close-stats').addEventListener('click', () => {
+  document.getElementById('stats-overlay').classList.add('hidden');
+});
+
+document.getElementById('stats-overlay').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('stats-overlay'))
+    document.getElementById('stats-overlay').classList.add('hidden');
+});
+
+document.getElementById('btn-reset-stats').addEventListener('click', () => {
+  localStorage.removeItem('solitaire-stats');
+  renderStats();
+});

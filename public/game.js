@@ -21,7 +21,153 @@ let undoStack = [];
 
 /* ─── Hard mode ─────────────────────────────────────────────── */
 let hardMode = localStorage.getItem('solitaire-hard') === 'true';
-const MAX_STOCK_PASSES = 2; // total recycles allowed in hard mode (3 passes through deck)
+const MAX_STOCK_PASSES = 2;
+
+/* ─── Draw count ─────────────────────────────────────────────── */
+let drawCount = parseInt(localStorage.getItem('solitaire-draw') || '3', 10);
+if (drawCount !== 1) drawCount = 3;
+
+/* ─── Sound ──────────────────────────────────────────────────── */
+let soundEnabled = localStorage.getItem('solitaire-sound') !== 'false';
+let audioCtx = null;
+
+function getAudioCtx() {
+  if (!audioCtx) {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (Ctx) audioCtx = new Ctx();
+  }
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function playSound(type) {
+  if (!soundEnabled) return;
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+
+  const noise = (dur, vol) => {
+    const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * dur), ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++)
+      d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (d.length * 0.3));
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(vol, now);
+    src.connect(g); g.connect(ctx.destination);
+    src.start(now);
+  };
+
+  if (type === 'place') noise(0.07, 0.18);
+  else if (type === 'flip')  noise(0.045, 0.12);
+  else if (type === 'draw')  noise(0.05,  0.09);
+  else if (type === 'win') {
+    [523, 659, 784, 1047].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const g   = ctx.createGain();
+      const t   = now + i * 0.13;
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(0.22, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+      osc.connect(g); g.connect(ctx.destination);
+      osc.start(t); osc.stop(t + 0.4);
+    });
+  }
+}
+
+/* ─── Auto-complete ──────────────────────────────────────────── */
+let autoCompleting = false;
+let autoCompleteTimer = null;
+
+function shouldAutoComplete() {
+  if (!state || state.won || state.stock.length > 0) return false;
+  return state.tableau.every(col => col.every(c => c.faceUp));
+}
+
+function checkAutoComplete() {
+  if (autoCompleting || !shouldAutoComplete()) return;
+  autoCompleting = true;
+  autoCompleteTimer = setTimeout(doAutoCompleteStep, 300);
+}
+
+function doAutoCompleteStep() {
+  if (!state || state.won) { autoCompleting = false; return; }
+
+  const sources = [
+    { type: 'waste' },
+    ...state.tableau.map((_, col) => ({ type: 'tableau', col })),
+  ];
+
+  for (const src of sources) {
+    const pile = src.type === 'waste' ? state.waste : state.tableau[src.col];
+    if (pile.length === 0) continue;
+    const card = pile[pile.length - 1];
+    const fi = foundationIndexForCard(card);
+    if (fi === -1) continue;
+
+    // Capture source rect before DOM update
+    let srcRect = null;
+    if (src.type === 'waste') {
+      srcRect = document.getElementById('waste').lastChild?.getBoundingClientRect();
+    } else {
+      const colEl = document.querySelectorAll('.tableau-col')[src.col];
+      srcRect = colEl?.lastChild?.getBoundingClientRect();
+    }
+
+    pile.pop();
+    state.foundations[fi].push(card);
+    recordMove();
+    flipTopTableau();
+    render();
+    checkWin();
+    playSound('place');
+    if (srcRect) animateSmartMove([srcRect], { type: 'foundation', idx: fi }, 1);
+
+    if (!state.won) autoCompleteTimer = setTimeout(doAutoCompleteStep, 150);
+    else autoCompleting = false;
+    return;
+  }
+
+  autoCompleting = false; // no moves found
+}
+
+function cancelAutoComplete() {
+  clearTimeout(autoCompleteTimer);
+  autoCompleting = false;
+}
+
+/* ─── Personal stats ─────────────────────────────────────────── */
+const STATS_KEY = 'solitaire-stats';
+
+function loadStats() {
+  try { return { ...defaultStats(), ...JSON.parse(localStorage.getItem(STATS_KEY)) }; }
+  catch { return defaultStats(); }
+}
+function defaultStats() {
+  return { played: 0, won: 0, bestTime: null, streak: 0, longestStreak: 0 };
+}
+function saveStats(s) { localStorage.setItem(STATS_KEY, JSON.stringify(s)); }
+
+function recordGameStart() {
+  if (state && state.moveCount > 0 && !state.won) {
+    const s = loadStats();
+    s.played++;
+    s.streak = 0;
+    saveStats(s);
+  }
+}
+
+function recordGameWin(ms) {
+  const s = loadStats();
+  s.played++;
+  s.won++;
+  s.streak++;
+  if (s.streak > s.longestStreak) s.longestStreak = s.streak;
+  if (s.bestTime === null || ms < s.bestTime) s.bestTime = ms;
+  saveStats(s);
+}
 
 /* ─── Timer helpers ─────────────────────────────────────────── */
 function startTimer() {
@@ -80,6 +226,8 @@ function shuffle(arr) {
 
 /* ─── New game ──────────────────────────────────────────────── */
 function newGame() {
+  recordGameStart();
+  cancelAutoComplete();
   resetTimer();
   clearTimeout(hintTimeout);
   clearHint();
@@ -184,11 +332,16 @@ function checkWin() {
   const won = state.foundations.every(f => f.length === 13);
   if (won && !state.won) {
     state.won = true;
+    cancelAutoComplete();
     stopTimer();
     clearTimeout(hintTimeout);
     clearHint();
     undoStack = [];
     updateUndoButton();
+    const ms = getElapsedMs();
+    recordGameWin(ms);
+    window.lastWinMoves = state.moveCount;
+    playSound('win');
     startCelebration(state.foundations.map(f => [...f]));
     setTimeout(showWin, 1000);
   }
@@ -384,9 +537,11 @@ function smartMove(source, colOrIdx, count) {
     state.tableau[dest.idx].push(...cards);
   }
   recordMove();
-  flipTopTableau();
+  const flipped = flipTopTableau();
   render();
   checkWin();
+  checkAutoComplete();
+  playSound(flipped ? 'flip' : 'place');
 
   // Animate the cards flying to their new home
   animateSmartMove(sourceRects, dest, count);
@@ -446,11 +601,14 @@ function animateSmartMove(sourceRects, dest, count) {
 }
 
 function flipTopTableau() {
+  let flipped = false;
   for (const col of state.tableau) {
     if (col.length > 0 && !col[col.length - 1].faceUp) {
       col[col.length - 1].faceUp = true;
+      flipped = true;
     }
   }
+  return flipped;
 }
 
 /* ──────────────────────────────────────────────────────────────
@@ -498,13 +656,14 @@ function renderStock() {
     el.appendChild(top);
   }
 
+  const exhausted = hardMode && state.stockPasses >= MAX_STOCK_PASSES && state.stock.length === 0;
+  el.classList.toggle('exhausted', exhausted);
+
   const passesEl = document.getElementById('stock-passes');
   if (passesEl) {
     if (hardMode) {
       const remaining = MAX_STOCK_PASSES - state.stockPasses;
-      passesEl.textContent = remaining > 0
-        ? `♻ ${remaining} left`
-        : 'No recycles left';
+      passesEl.textContent = remaining > 0 ? `♻ ${remaining} left` : 'No recycles left';
       passesEl.classList.toggle('exhausted', remaining <= 0);
     } else {
       passesEl.textContent = '';
@@ -518,26 +677,36 @@ function renderWaste() {
   el.innerHTML = '';
   if (state.waste.length === 0) return;
 
-  const FAN_OFFSET = window.innerWidth <= 600 ? 7 : 18;
-  const SHOW = Math.min(state.waste.length, 3);
-
-  for (let i = state.waste.length - SHOW; i < state.waste.length; i++) {
-    const card = state.waste[i];
+  if (drawCount === 1) {
+    const card = state.waste[state.waste.length - 1];
     const cardEl = makeCardEl(card);
-    const pos = i - (state.waste.length - SHOW); // 0, 1, or 2 (0 = furthest back)
     cardEl.style.top  = '0px';
-    cardEl.style.left = `${pos * FAN_OFFSET}px`;
+    cardEl.style.left = '0px';
     el.appendChild(cardEl);
-  }
-
-  // Only the top card (last child, rightmost) is interactive
-  const topEl = el.lastChild;
-  if (topEl) {
-    setupDrag(topEl, 'waste', state.waste.length - 1, 1);
-    topEl.addEventListener('click', () => {
+    setupDrag(cardEl, 'waste', state.waste.length - 1, 1);
+    cardEl.addEventListener('click', () => {
       if (dragOccurred) return;
       smartMove('waste', state.waste.length - 1, 1);
     });
+  } else {
+    const FAN_OFFSET = window.innerWidth <= 600 ? 7 : 18;
+    const SHOW = Math.min(state.waste.length, 3);
+    for (let i = state.waste.length - SHOW; i < state.waste.length; i++) {
+      const card = state.waste[i];
+      const cardEl = makeCardEl(card);
+      const pos = i - (state.waste.length - SHOW);
+      cardEl.style.top  = '0px';
+      cardEl.style.left = `${pos * FAN_OFFSET}px`;
+      el.appendChild(cardEl);
+    }
+    const topEl = el.lastChild;
+    if (topEl) {
+      setupDrag(topEl, 'waste', state.waste.length - 1, 1);
+      topEl.addEventListener('click', () => {
+        if (dragOccurred) return;
+        smartMove('waste', state.waste.length - 1, 1);
+      });
+    }
   }
 }
 
@@ -769,9 +938,11 @@ function applyDrop(pile, source, colOrIdx, count, cards) {
     removeFromSource(source, colOrIdx, count);
     state.foundations[fi].push(card);
     recordMove();
-    flipTopTableau();
+    const flipped1 = flipTopTableau();
     render();
     checkWin();
+    checkAutoComplete();
+    playSound(flipped1 ? 'flip' : 'place');
 
   } else if (pile.type === 'tableau') {
     const destCol = parseInt(pile.el.dataset.col);
@@ -784,9 +955,11 @@ function applyDrop(pile, source, colOrIdx, count, cards) {
     removeFromSource(source, colOrIdx, count);
     state.tableau[destCol].push(...cards);
     recordMove();
-    flipTopTableau();
+    const flipped2 = flipTopTableau();
     render();
     checkWin();
+    checkAutoComplete();
+    playSound(flipped2 ? 'flip' : 'place');
   }
 }
 
@@ -804,22 +977,24 @@ function removeFromSource(source, colOrIdx, count) {
 document.getElementById('stock').addEventListener('click', () => {
   if (state.stock.length > 0) {
     saveUndoState();
-    const toDraw = Math.min(3, state.stock.length);
+    const toDraw = Math.min(drawCount, state.stock.length);
     for (let i = 0; i < toDraw; i++) {
       const card = state.stock.pop();
       card.faceUp = true;
       state.waste.push(card);
     }
+    playSound('draw');
   } else {
-    // Recycle — blocked in hard mode when passes are exhausted
     if (hardMode && state.stockPasses >= MAX_STOCK_PASSES) return;
     saveUndoState();
     state.stock = state.waste.slice().reverse().map(c => ({ ...c, faceUp: false }));
     state.waste = [];
     if (hardMode) state.stockPasses++;
+    playSound('draw');
   }
   recordMove();
   render();
+  checkAutoComplete();
 });
 
 // Drop zones for foundation and tableau (pointer-based)
@@ -879,7 +1054,45 @@ function toggleHardMode() {
 
 document.getElementById('btn-hard-mode').addEventListener('click', toggleHardMode);
 
+/* ─── Draw count toggle ─────────────────────────────────────── */
+function updateDrawUI() {
+  document.documentElement.classList.toggle('draw-one', drawCount === 1);
+  const btn = document.getElementById('btn-draw-toggle');
+  if (btn) {
+    btn.textContent = drawCount === 1 ? 'Draw 1' : 'Draw 3';
+    btn.classList.toggle('draw-one', drawCount === 1);
+  }
+}
+
+function toggleDraw() {
+  drawCount = drawCount === 3 ? 1 : 3;
+  localStorage.setItem('solitaire-draw', drawCount);
+  updateDrawUI();
+  newGame();
+}
+
+document.getElementById('btn-draw-toggle').addEventListener('click', toggleDraw);
+
+/* ─── Sound toggle ──────────────────────────────────────────── */
+function updateSoundUI() {
+  const btn = document.getElementById('btn-sound');
+  if (btn) {
+    btn.textContent = soundEnabled ? '🔊' : '🔇';
+    btn.classList.toggle('muted', !soundEnabled);
+  }
+}
+
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  localStorage.setItem('solitaire-sound', soundEnabled);
+  updateSoundUI();
+}
+
+document.getElementById('btn-sound').addEventListener('click', toggleSound);
+
 /* ─── Boot ──────────────────────────────────────────────────── */
 setupDropZones();
 updateHardModeUI();
+updateDrawUI();
+updateSoundUI();
 newGame();
