@@ -10,7 +10,7 @@ const RED_SUITS = new Set(['♥', '♦']);
 function isRed(suit) { return RED_SUITS.has(suit); }
 
 /* ─── State ─────────────────────────────────────────────────── */
-let state = null;  // { stock, waste, foundations[4], tableau[7], moveCount, won }
+let state = null;  // { stock, waste, foundations[4], tableau[7], moveCount, won, stockPasses }
 let timerInterval = null;
 let timerStart = null;
 let elapsed = 0;   // ms
@@ -18,6 +18,10 @@ let timerRunning = false;
 let hintTimeout = null;
 const HINT_DELAY = 60_000;
 let undoStack = [];
+
+/* ─── Hard mode ─────────────────────────────────────────────── */
+let hardMode = localStorage.getItem('solitaire-hard') === 'true';
+const MAX_STOCK_PASSES = 2; // total recycles allowed in hard mode (3 passes through deck)
 
 /* ─── Timer helpers ─────────────────────────────────────────── */
 function startTimer() {
@@ -102,6 +106,7 @@ function newGame() {
     tableau,
     moveCount: 0,
     won: false,
+    stockPasses: 0,
   };
 
   render();
@@ -191,6 +196,7 @@ function checkWin() {
 
 /* ─── Undo ───────────────────────────────────────────────────── */
 function saveUndoState() {
+  if (hardMode) return;
   undoStack.push({
     stock:       state.stock.map(c => ({ ...c })),
     waste:       state.waste.map(c => ({ ...c })),
@@ -220,6 +226,7 @@ function updateUndoButton() {
 function resetHintTimer() {
   clearHint();
   clearTimeout(hintTimeout);
+  if (hardMode) return;
   hintTimeout = setTimeout(triggerHint, HINT_DELAY);
 }
 
@@ -516,6 +523,20 @@ function renderStock() {
     const top = makeCardEl({ suit: '', rank: '', faceUp: false });
     el.appendChild(top);
   }
+
+  const passesEl = document.getElementById('stock-passes');
+  if (passesEl) {
+    if (hardMode) {
+      const remaining = MAX_STOCK_PASSES - state.stockPasses;
+      passesEl.textContent = remaining > 0
+        ? `♻ ${remaining} left`
+        : 'No recycles left';
+      passesEl.classList.toggle('exhausted', remaining <= 0);
+    } else {
+      passesEl.textContent = '';
+      passesEl.classList.remove('exhausted');
+    }
+  }
 }
 
 function renderWaste() {
@@ -807,8 +828,8 @@ function removeFromSource(source, colOrIdx, count) {
    CLICK HANDLERS (non-drag)
    ────────────────────────────────────────────────────────────── */
 document.getElementById('stock').addEventListener('click', () => {
-  saveUndoState();
   if (state.stock.length > 0) {
+    saveUndoState();
     const toDraw = Math.min(3, state.stock.length);
     for (let i = 0; i < toDraw; i++) {
       const card = state.stock.pop();
@@ -816,9 +837,12 @@ document.getElementById('stock').addEventListener('click', () => {
       state.waste.push(card);
     }
   } else {
-    // Recycle — reverse waste back into stock maintaining original order
+    // Recycle — blocked in hard mode when passes are exhausted
+    if (hardMode && state.stockPasses >= MAX_STOCK_PASSES) return;
+    saveUndoState();
     state.stock = state.waste.slice().reverse().map(c => ({ ...c, faceUp: false }));
     state.waste = [];
+    if (hardMode) state.stockPasses++;
   }
   recordMove();
   render();
@@ -865,6 +889,23 @@ document.getElementById('btn-new-game').addEventListener('click', () => {
 
 document.getElementById('btn-undo').addEventListener('click', undo);
 
+/* ─── Hard mode toggle ──────────────────────────────────────── */
+function updateHardModeUI() {
+  document.documentElement.classList.toggle('hard-mode', hardMode);
+  const btn = document.getElementById('btn-hard-mode');
+  if (btn) btn.classList.toggle('hard-active', hardMode);
+}
+
+function toggleHardMode() {
+  hardMode = !hardMode;
+  localStorage.setItem('solitaire-hard', hardMode);
+  updateHardModeUI();
+  newGame();
+}
+
+document.getElementById('btn-hard-mode').addEventListener('click', toggleHardMode);
+
 /* ─── Boot ──────────────────────────────────────────────────── */
 setupDropZones();
+updateHardModeUI();
 newGame();

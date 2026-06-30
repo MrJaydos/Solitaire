@@ -18,6 +18,7 @@
         <div id="buttons">
           <button id="btn-new-game">New Game</button>
           <button id="btn-undo" disabled>Undo</button>
+          <button id="btn-hard-mode">Hard Mode</button>
           <button id="btn-leaderboard">Leaderboard</button>
           <button id="btn-dark-mode" title="Toggle dark/light mode">☀</button>
         </div>
@@ -27,7 +28,10 @@
     <main id="game-area">
       <section id="top-row">
         <div id="stock-waste">
-          <div id="stock" class="pile stock-pile" title="Click to draw"></div>
+          <div class="stock-col">
+            <div id="stock" class="pile stock-pile" title="Click to draw"></div>
+            <div id="stock-passes"></div>
+          </div>
           <div id="waste" class="pile waste-pile"></div>
         </div>
         <div id="foundations">

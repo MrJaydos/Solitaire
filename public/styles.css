@@ -144,6 +144,28 @@ button:disabled { opacity: 0.35; cursor: default; transform: none; }
 }
 #btn-leaderboard:hover { background: rgba(255,255,255,0.16); }
 
+#btn-hard-mode {
+  background: rgba(255,255,255,0.08);
+  color: var(--text);
+  border: 1px solid rgba(255,255,255,0.15);
+}
+#btn-hard-mode:hover { background: rgba(255,255,255,0.14); }
+#btn-hard-mode.hard-active {
+  background: #c0392b;
+  border-color: #922b21;
+  color: #fff;
+}
+#btn-hard-mode.hard-active:hover { background: #e74c3c; }
+
+html.light #btn-hard-mode.hard-active {
+  background: #e74c3c;
+  border-color: #c0392b;
+  color: #fff;
+}
+
+/* Hide undo button in hard mode */
+html.hard-mode #btn-undo { display: none; }
+
 #game-area {
   flex: 1;
   padding: var(--gap);
@@ -167,6 +189,24 @@ button:disabled { opacity: 0.35; cursor: default; transform: none; }
   display: flex;
   gap: var(--gap);
 }
+
+.stock-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+#stock-passes {
+  font-size: 0.62rem;
+  color: rgba(255,255,255,0.5);
+  text-align: center;
+  min-height: 1em;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+html.light #stock-passes { color: rgba(0,0,0,0.45); }
+#stock-passes.exhausted { color: #e03030 !important; font-weight: 700; }
 
 #foundations {
   display: flex;
