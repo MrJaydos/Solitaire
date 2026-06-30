@@ -355,29 +355,14 @@ html.light #stock-passes { color: rgba(0,0,0,0.45); }
   pointer-events: none;
 }
 
-/* Pip number cards — position comes from .card-center (absolute) */
-
-.pip {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  font-size: calc(var(--card-w) * 0.175);
-  line-height: 1;
-  display: block;
-}
-
-.pip-flip { transform: translate(-50%, -50%) rotate(180deg); }
-
-.pip-ace,
-.pip-face {
+.pip-center {
   position: absolute;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
+  font-size: calc(var(--card-w) * 0.46);
   line-height: 1;
 }
-
-.pip-ace  { font-size: calc(var(--card-w) * 0.46); }
-.pip-face { font-size: calc(var(--card-w) * 0.36); }
 
 /* Tableau stacking offset */
 .tableau-col .card { top: 0; }

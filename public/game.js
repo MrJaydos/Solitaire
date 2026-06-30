@@ -454,33 +454,10 @@ function flipTopTableau() {
 }
 
 /* ──────────────────────────────────────────────────────────────
-   CARD FACE DESIGNS
-   Each pip entry is [x, y] normalised 0–1 within the centre area.
-   Pips with y > 0.55 are rotated 180° to match real card convention.
+   CARD FACE DESIGNS — large centred suit symbol on every card
    ────────────────────────────────────────────────────────────── */
-const PIP_POSITIONS = {
-  '2':  [[.50,.18],[.50,.82]],
-  '3':  [[.50,.14],[.50,.50],[.50,.86]],
-  '4':  [[.27,.20],[.73,.20],[.27,.80],[.73,.80]],
-  '5':  [[.27,.20],[.73,.20],[.50,.50],[.27,.80],[.73,.80]],
-  '6':  [[.27,.18],[.73,.18],[.27,.50],[.73,.50],[.27,.82],[.73,.82]],
-  '7':  [[.27,.14],[.73,.14],[.50,.33],[.27,.52],[.73,.52],[.27,.82],[.73,.82]],
-  '8':  [[.27,.14],[.73,.14],[.50,.33],[.27,.52],[.73,.52],[.50,.67],[.27,.82],[.73,.82]],
-  '9':  [[.27,.12],[.73,.12],[.27,.36],[.73,.36],[.50,.50],[.27,.64],[.73,.64],[.27,.88],[.73,.88]],
-  '10': [[.27,.10],[.73,.10],[.50,.22],[.27,.37],[.73,.37],[.27,.63],[.73,.63],[.50,.78],[.27,.90],[.73,.90]],
-};
-
 function buildCardCenter(rank, suit) {
-  if (rank === 'A') {
-    return `<div class="card-center"><span class="pip pip-ace">${suit}</span></div>`;
-  }
-  if (['J','Q','K'].includes(rank)) {
-    return `<div class="card-center"><span class="pip pip-face">${suit}</span></div>`;
-  }
-  const pips = (PIP_POSITIONS[rank] || []).map(([x, y]) =>
-    `<span class="pip${y > 0.55 ? ' pip-flip' : ''}" style="left:${x*100}%;top:${y*100}%">${suit}</span>`
-  ).join('');
-  return `<div class="card-center card-pips">${pips}</div>`;
+  return `<div class="card-center"><span class="pip-center">${suit}</span></div>`;
 }
 
 /* ──────────────────────────────────────────────────────────────
