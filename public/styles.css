@@ -355,8 +355,7 @@ html.light #stock-passes { color: rgba(0,0,0,0.45); }
   pointer-events: none;
 }
 
-/* Pip number cards */
-.card-pips { position: relative; }
+/* Pip number cards — position comes from .card-center (absolute) */
 
 .pip {
   position: absolute;
