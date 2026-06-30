@@ -190,3 +190,28 @@ document.getElementById('btn-reset-stats').addEventListener('click', () => {
   localStorage.removeItem('solitaire-stats');
   renderStats();
 });
+
+/* ─── Share result ──────────────────────────────────────────── */
+document.getElementById('btn-share').addEventListener('click', async () => {
+  const ms    = window.lastWinMs || 0;
+  const moves = window.lastWinMoves || 0;
+  const s     = Math.floor(ms / 1000);
+  const m     = Math.floor(s / 60);
+  const text  = `I won Solitaire in ${m}:${String(s % 60).padStart(2,'0')} with ${moves} moves! 🃏\nhttps://solitaire.alfi3.com`;
+  const btn   = document.getElementById('btn-share');
+
+  const reset = (label, delay = 2000) => {
+    btn.textContent = label;
+    setTimeout(() => { btn.textContent = 'Share'; }, delay);
+  };
+
+  if (navigator.share) {
+    try { await navigator.share({ text }); return; } catch (_) {}
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    reset('✓ Copied!');
+  } catch (_) {
+    reset('Failed');
+  }
+});

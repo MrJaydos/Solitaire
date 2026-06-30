@@ -169,6 +169,89 @@ function recordGameWin(ms) {
   saveStats(s);
 }
 
+/* ─── Save / restore game ────────────────────────────────────── */
+const GAME_SAVE_KEY = 'solitaire-game';
+
+function saveGame() {
+  if (!state || state.won) { localStorage.removeItem(GAME_SAVE_KEY); return; }
+  const snap = timerRunning ? Date.now() - timerStart : elapsed;
+  try {
+    localStorage.setItem(GAME_SAVE_KEY, JSON.stringify({ state, elapsed: snap, undoStack }));
+  } catch (_) {}
+}
+
+function loadSavedGame() {
+  try {
+    const raw = localStorage.getItem(GAME_SAVE_KEY);
+    if (!raw) return false;
+    const saved = JSON.parse(raw);
+    if (!saved?.state || saved.state.won) return false;
+    cancelAutoComplete();
+    clearTimeout(hintTimeout);
+    clearHint();
+    state      = saved.state;
+    elapsed    = saved.elapsed || 0;
+    undoStack  = saved.undoStack || [];
+    timerRunning = false;
+    updateTimerDisplay();
+    updateUndoButton();
+    render();
+    resetHintTimer();
+    scheduleStuckCheck();
+    return true;
+  } catch (_) {
+    localStorage.removeItem(GAME_SAVE_KEY);
+    return false;
+  }
+}
+
+/* ─── Stuck detection ─────────────────────────────────────────── */
+let stuckCheckTimeout = null;
+
+function isStuck() {
+  if (!state || state.won || autoCompleting) return false;
+  if (state.stock.length > 0) return false;
+  if (state.waste.length > 0 && (!hardMode || state.stockPasses < MAX_STOCK_PASSES)) return false;
+
+  // Check waste top card
+  if (state.waste.length > 0) {
+    const wc = state.waste[state.waste.length - 1];
+    if (foundationIndexForCard(wc) !== -1) return false;
+    for (let c = 0; c < 7; c++) {
+      const t = state.tableau[c];
+      if (canStackOnTableau(wc, t.length ? t[t.length - 1] : null)) return false;
+    }
+  }
+
+  // Check tableau cards
+  for (let src = 0; src < 7; src++) {
+    const pile = state.tableau[src];
+    const fi = pile.findIndex(c => c.faceUp);
+    if (fi === -1) continue;
+    for (let i = fi; i < pile.length; i++) {
+      const card = pile[i];
+      if (i === pile.length - 1 && foundationIndexForCard(card) !== -1) return false;
+      for (let dst = 0; dst < 7; dst++) {
+        if (dst === src) continue;
+        const dt = state.tableau[dst];
+        if (canStackOnTableau(card, dt.length ? dt[dt.length - 1] : null)) return false;
+      }
+    }
+  }
+  return true;
+}
+
+function scheduleStuckCheck() {
+  clearTimeout(stuckCheckTimeout);
+  stuckCheckTimeout = setTimeout(() => {
+    const stuck = isStuck();
+    const banner = document.getElementById('stuck-banner');
+    if (banner) banner.classList.toggle('hidden', !stuck);
+    const undoBtn = document.getElementById('stuck-btn-undo');
+    if (undoBtn) undoBtn.disabled = hardMode || undoStack.length === 0;
+  }, 600);
+}
+
 /* ─── Timer helpers ─────────────────────────────────────────── */
 function startTimer() {
   if (timerRunning) return;
@@ -228,6 +311,9 @@ function shuffle(arr) {
 function newGame() {
   recordGameStart();
   cancelAutoComplete();
+  clearTimeout(stuckCheckTimeout);
+  localStorage.removeItem(GAME_SAVE_KEY);
+  document.getElementById('stuck-banner')?.classList.add('hidden');
   resetTimer();
   clearTimeout(hintTimeout);
   clearHint();
@@ -325,6 +411,8 @@ function recordMove() {
   if (!timerRunning) startTimer();
   resetHintTimer();
   updateUndoButton();
+  saveGame();
+  scheduleStuckCheck();
 }
 
 /* ─── Win check ─────────────────────────────────────────────── */
@@ -339,6 +427,8 @@ function checkWin() {
     undoStack = [];
     updateUndoButton();
     const ms = getElapsedMs();
+    const prevBest = loadStats().bestTime;
+    window.lastWinIsPersonalBest = prevBest === null || ms < prevBest;
     recordGameWin(ms);
     window.lastWinMoves = state.moveCount;
     playSound('win');
@@ -1016,13 +1106,14 @@ function showWin() {
     `Time: ${m}:${String(s % 60).padStart(2, '0')}`;
   document.getElementById('win-moves').textContent =
     `Moves: ${state.moveCount}`;
+  document.getElementById('win-personal-best')
+    .classList.toggle('hidden', !window.lastWinIsPersonalBest);
+  document.getElementById('stuck-banner').classList.add('hidden');
   document.getElementById('win-overlay').classList.remove('hidden');
   const nameEl = document.getElementById('player-name');
   const savedName = localStorage.getItem('solitaire-name');
   if (savedName) nameEl.value = savedName;
   nameEl.focus();
-
-  // Expose to leaderboard.js
   window.lastWinMs = ms;
 }
 
@@ -1090,9 +1181,30 @@ function toggleSound() {
 
 document.getElementById('btn-sound').addEventListener('click', toggleSound);
 
+/* ─── Stuck banner buttons ──────────────────────────────────── */
+document.getElementById('stuck-btn-new').addEventListener('click', newGame);
+document.getElementById('stuck-btn-undo').addEventListener('click', () => {
+  undo();
+  document.getElementById('stuck-banner').classList.add('hidden');
+});
+
+/* ─── Keyboard shortcuts ─────────────────────────────────────── */
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  const mod = e.ctrlKey || e.metaKey;
+  switch (e.key.toLowerCase()) {
+    case 'n': if (!mod) { e.preventDefault(); newGame(); }                              break;
+    case 'u': if (!mod && !hardMode) { e.preventDefault(); undo(); }                   break;
+    case 'z': if ( mod && !hardMode) { e.preventDefault(); undo(); }                   break;
+    case 'h': if (!mod && !hardMode && state && !state.won) {
+                e.preventDefault(); clearHint(); triggerHint();
+              }                                                                           break;
+  }
+});
+
 /* ─── Boot ──────────────────────────────────────────────────── */
 setupDropZones();
 updateHardModeUI();
 updateDrawUI();
 updateSoundUI();
-newGame();
+if (!loadSavedGame()) newGame();

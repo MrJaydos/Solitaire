@@ -56,10 +56,20 @@
       </section>
     </main>
 
+    <!-- No-moves banner -->
+    <div id="stuck-banner" class="hidden">
+      <span>No moves remaining</span>
+      <div class="stuck-actions">
+        <button id="stuck-btn-undo">Undo</button>
+        <button id="stuck-btn-new">New Game</button>
+      </div>
+    </div>
+
     <!-- Win overlay -->
     <div id="win-overlay" class="hidden">
       <div id="win-modal">
         <h2>You Won!</h2>
+        <p id="win-personal-best" class="hidden personal-best-msg">🏆 New Personal Best!</p>
         <p id="win-time"></p>
         <p id="win-moves"></p>
         <div id="submit-form">
@@ -71,7 +81,10 @@
           </div>
           <p id="submit-status"></p>
         </div>
-        <button id="btn-play-again">Play Again</button>
+        <div class="win-bottom-row">
+          <button id="btn-share">Share</button>
+          <button id="btn-play-again">Play Again</button>
+        </div>
       </div>
     </div>
 
