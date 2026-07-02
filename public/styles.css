@@ -83,6 +83,32 @@ header {
   border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 
+.title-group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+#btn-back-games {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+  background: rgba(255,255,255,0.08);
+  text-decoration: none;
+  transition: background 0.15s, transform 0.1s;
+  white-space: nowrap;
+}
+
+#btn-back-games:hover { background: rgba(255,255,255,0.18); }
+#btn-back-games:active { transform: scale(0.97); }
+
 h1 {
   font-size: 1.5rem;
   font-weight: 700;
